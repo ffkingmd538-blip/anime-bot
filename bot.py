@@ -15,6 +15,7 @@ API_HASH = "94a4d1f437612096d1a5e5128e46b0d8"
 BOT_TOKEN = "8935859436:AAFAVNkKAYU4PIC7u9W4ZKUfjiGDuhSpQEA"
 MONGO_URI = "mongodb+srv://animebot:animebotopo@cluster0.xkwletj.mongodb.net/?retryWrites=true&w=majority"
 DATABASE_NAME = "AnimeFileStore"
+app = Client("AnimeBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
