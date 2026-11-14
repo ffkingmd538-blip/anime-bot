@@ -10,10 +10,21 @@ BOT_TOKEN = "8935859436:AAFAVNkKAYU4PIC7u9W4ZKUfjiGDuhSpQEA"
 MONGO_URI = "mongodb+srv://animebot:animebotopo@cluster0.xkwletj.mongodb.net/?retryWrites=true&w=majority"
 DATABASE_NAME = "AnimeFileStore"
 
-# Database Connection
-db_client = AsyncIOMotorClient(MONGO_URI)
-db = db_client[DATABASE_NAME]
-files_col = db["anime_files"]
+from motor.motor_asyncio import AsyncIOMotorClient
+
+# Database Connection (Lazy Initialization)
+db_client = None
+_db = None
+files_col = None
+
+def get_db():
+    global db_client, _db, files_col
+    if db_client is None:
+        db_client = AsyncIOMotorClient(MONGO_URI)
+        _db = db_client[DATABASE_NAME]
+        files_col = _db["anime_files"]
+    return files_col
+    
 
 app = Client("AnimeBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
@@ -31,7 +42,7 @@ async def parse_anime_caption(client: Client, message: Message):
         
         file_id = message.document.file_id if message.document else message.video.file_id
         
-        await files_col.insert_one({
+        await get_db().insert_one({  
             "anime_name": anime_name,
             "season": season,
             "episode": episode,
@@ -43,7 +54,7 @@ async def parse_anime_caption(client: Client, message: Message):
 # --- 2. START COMMAND & ANIME LIST ---
 @app.on_message(filters.command("start"))
 async def start_handler(client: Client, message: Message):
-    animes = await files_col.distinct("anime_name")
+    animes = await get_db().distinct("anime_name")  
     
     if not animes:
         await message.reply("⚠️ বর্তমানে কোনো অ্যানিমে ফাইল ডেটাবেজে নেই!")
@@ -63,7 +74,7 @@ async def callback_handler(client: Client, callback_query: CallbackQuery):
     
     if data.startswith("anime_"):
         anime_name = data.replace("anime_", "")
-        seasons = await files_col.distinct("season", {"anime_name": anime_name})
+        seasons = await get_db().distinct("season", {"anime_name": anime_name})
         
         keyboard = []
         for season in seasons:
@@ -77,7 +88,7 @@ async def callback_handler(client: Client, callback_query: CallbackQuery):
         anime_name = parts[1]
         season = parts[2]
         
-        episodes = await files_col.distinct("episode", {"anime_name": anime_name, "season": season})
+        episodes = await get_db().distinct("episode", {"anime_name": anime_name, "season": season})  
         
         keyboard = []
         for ep in episodes:
@@ -92,7 +103,7 @@ async def callback_handler(client: Client, callback_query: CallbackQuery):
         season = parts[2]
         ep = parts[3]
         
-        files = await files_col.find({"anime_name": anime_name, "season": season, "episode": ep}).to_list(length=100)
+        files = await get_db().find({"anime_name": anime_name, "season": season, "episode": ep}).to_list(length=100) 
         
         keyboard = []
         for f in files:
@@ -104,7 +115,7 @@ async def callback_handler(client: Client, callback_query: CallbackQuery):
     elif data.startswith("get_"):
         from bson.ObjectId import ObjectId
         file_id_db = data.replace("get_", "")
-        file_doc = await files_col.find_one({"_id": ObjectId(file_id_db)})
+        file_doc = await get_db().find_one({"_id": ObjectId(file_id_db)}) 
         
         if file_doc:
             await client.send_cached_media(
@@ -115,7 +126,7 @@ async def callback_handler(client: Client, callback_query: CallbackQuery):
         await callback_query.answer("ফাইলটি আপনার ইনবক্সে পাঠিয়ে দেওয়া হয়েছে! 🚀", show_alert=True)
 
     elif data == "home":
-        animes = await files_col.distinct("anime_name")
+        animes = await get_db().distinct("anime_name")  
         keyboard = [[InlineKeyboardButton(anime, callback_data=f"anime_{anime}")] for anime in animes]
         await callback_query.message.edit_text("🎬 **ASIAN ANIME ZONE - File Store**\n\nনিচ থেকে আপনার পছন্দের অ্যানিমে সিলেক্ট করুন:", reply_markup=InlineKeyboardMarkup(keyboard))
 
