@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, CallbackQuery
@@ -16,18 +17,20 @@ from motor.motor_asyncio import AsyncIOMotorClient
 db_client = None
 _db = None
 files_col = None
-
 def get_db():
     global db_client, _db, files_col
     if db_client is None:
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         db_client = AsyncIOMotorClient(MONGO_URI)
         _db = db_client[DATABASE_NAME]
         files_col = _db["anime_files"]
     return files_col
     
-
-app = Client("AnimeBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
 # --- 1. CHANNEL POST PARSER ---
 @app.on_message(filters.channel & (filters.document | filters.video))
 async def parse_anime_caption(client: Client, message: Message):
